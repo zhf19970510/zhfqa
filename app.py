@@ -1,6 +1,7 @@
 # encoding:utf-8
 from flask import Flask, render_template, request, redirect, url_for, session
 from sqlalchemy import or_
+from page_utils import Pagination
 
 import config
 from models import User, Question, Answer
@@ -14,21 +15,26 @@ db.init_app(app)
 
 @app.route('/')
 def index():
-    context = {
-        'questions': Question.query.order_by(db.desc('create_time')).all()
-    }
-    return render_template("index.html", **context)
-
+    # context = {
+    #     'questions': Question.query.order_by(db.desc('create_time')).all()
+    # }
+    questions = Question.query.order_by(db.desc('create_time')).all()
+    # return render_template("index.html", **context)
+    pager_obj = Pagination(request.args.get("page", 1), len(questions), request.path, request.args, per_page_count=10)
+    questions = questions[pager_obj.start:pager_obj.end]
+    html = pager_obj.page_html()
+    return render_template("index.html", questions=questions, html=html)
 
 
 @app.route("/search/")
 def search():
     q = request.args.get("q")
-    questions = Question.query.filter(or_(Question.title.contains(q), Question.content.contains(q))).all()
+    questions = Question.query.order_by(db.desc('create_time')).filter(or_(Question.title.contains(q), Question.content.contains(q))).all()
     context = {
-        'questions':questions
+        'questions': questions
     }
-    return render_template('index.html',**context)
+    return render_template('index.html', **context)
+
 
 @app.route("/login/", methods=['GET', 'POST'])
 def login():
@@ -44,7 +50,9 @@ def login():
             session.permanent = True
             return redirect(url_for("index"))
         else:
-            return u"手机号或者密码错误，请确认后再登录"
+            # return u"手机号或者密码错误，请确认后再登录"
+            msg = u'手机号或者密码错误，请确认后再登录'
+            return render_template("login.html", msg=msg)
 
 
 @app.route("/regist/", methods=['GET', 'POST'])
@@ -60,11 +68,15 @@ def regist():
         # 手机号码验证，如果被注册了，就不能再注册了
         user = User.query.filter(User.telephone == telephone).first()
         if user:
-            return u"该手机号码已经被注册，请更换手机号码!"
+            # return u"该手机号码已经被注册，请更换手机号码!"
+            msg = u"该手机号码已经被注册，请更换手机号码!"
+            return render_template("regist.html", msg=msg)
         else:
             # password1 要和password2相等才可以
             if password1 != password2:
-                return u"两次密码不相同，请重新核对!"
+                # return u"两次密码不相同，请重新核对!"
+                msg = u"两次密码不相同，请重新核对!"
+                return render_template("regist.html", msg=msg)
             else:
                 user = User(telephone=telephone, username=username, password=password1)
                 db.session.add(user)
@@ -117,7 +129,7 @@ def add_anwser():
     answer.question = question
     db.session.add(answer)
     db.session.commit()
-    return redirect(url_for('detail',question_id=question_id))
+    return redirect(url_for('detail', question_id=question_id))
 
 
 @app.context_processor
