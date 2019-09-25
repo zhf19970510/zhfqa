@@ -47,7 +47,9 @@ def login():
         if user:
             session['user_id'] = user.id
             # 如果想在31天内都不需要登录
-            session.permanent = True
+            remberme = request.form.get("remberme")
+            if remberme == 'on':
+                session.permanent = True
             return redirect(url_for("index"))
         else:
             # return u"手机号或者密码错误，请确认后再登录"
